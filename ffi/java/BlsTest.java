@@ -1,15 +1,40 @@
 import java.io.*;
 import com.herumi.bls.*;
+import java.util.Arrays;
+import java.math.BigInteger;
+import java.util.Scanner;
+import java.io.File;
+import java.util.HashMap;
 
 /*
 	BlsTest
 */
 public class BlsTest {
+
+        private static HashMap<Character, String> hashMap
+            = new HashMap<Character, String>();
+
 	static {
 		String lib = "blsjava";
 		String libName = System.mapLibraryName(lib);
 		System.out.println("libName : " + libName);
-		System.loadLibrary(lib);
+		System.loadLibrary(lib);    
+		hashMap.put('0', "0000");
+	        hashMap.put('1', "0001");
+	        hashMap.put('2', "0010");
+	        hashMap.put('3', "0011");
+	        hashMap.put('4', "0100");
+        	hashMap.put('5', "0101");
+	        hashMap.put('6', "0110");
+	        hashMap.put('7', "0111");
+	        hashMap.put('8', "1000");
+	        hashMap.put('9', "1001");
+	        hashMap.put('A', "1010");
+	        hashMap.put('B', "1011");
+	        hashMap.put('C', "1100");
+        	hashMap.put('D', "1101");
+	        hashMap.put('E', "1110");
+        	hashMap.put('F', "1111");
 	}
 	public static int errN = 0;
 	public static void assertEquals(String msg, String x, String y) {
@@ -319,16 +344,20 @@ public class BlsTest {
 		try {
 			System.out.println("curve=" + name);
 			Bls.init(curveType);
-			testHex();
-			testSecretKey();
-			testPublicKey();
-			testSign();
-			testShare();
-			testAggregateSignature();
+//			testHex();
+//			testSecretKey();
+//			testPublicKey();
+//			testSign();
+//			testShare();
+//			testAggregateSignature();
 			if (Bls.isDefinedBLS_ETH() && curveType == Bls.BLS12_381) {
 				System.out.println("BLS ETH mode");
-				testAggregateVerify();
-				testHarmonyONE();
+	//			testAggregateVerify();
+	//			testHarmonyONE();
+				testHarmonyAggregate();
+				testHarmonyAggregate2();
+				testAggregateReal();
+				testAggregateReal3();
 			}
 			if (errN == 0) {
 				System.out.println("all test passed");
@@ -340,7 +369,322 @@ public class BlsTest {
 		}
 	}
 	public static void main(String argv[]) {
-		testCurve(Bls.BN254, "BN254");
+	//	testCurve(Bls.BN254, "BN254");
 		testCurve(Bls.BLS12_381, "BLS12_381");
 	}
+private static byte[] toByteArrayLittleEndianUnsigned(byte[] bytes) {
+                byte[] reversed = reverse(bytes);
+                return reversed;
+    }
+
+    private static byte[] reverse(byte[] array) {
+              if (array == null) {
+                  return null;
+              }
+              int i = 0;
+              int j = array.length - 1;
+              byte tmp;
+              while (j > i) {
+                  tmp = array[j];
+                  array[j] = array[i];
+                  array[i] = tmp;
+                  j--;
+                  i++;
+              }
+                return array;
+    }
+
+    private static byte[] toByteArrayUnsigned(byte[] bytes) {
+        byte[] extractedBytes = bytes;
+        int skipped = 0;
+        boolean skip = true;
+        for (byte b : extractedBytes) {
+            boolean signByte = b == (byte) 0x00;
+            if (skip && signByte) {
+                skipped++;
+                continue;
+            } else if (skip) {
+                skip = false;
+            }
+        }
+        extractedBytes = Arrays.copyOfRange(extractedBytes, skipped,
+                extractedBytes.length);
+        return extractedBytes;
+    }
+	
+	public static void testHarmonyAggregate() {
+                Bls.init(Bls.BLS12_381);
+                Bls.setETHserialization(false);
+                Bls.setMapToMode(Bls.MAP_TO_MODE_ORIGINAL);
+                PublicKey gen = new PublicKey();
+                // the old generator
+                gen.setStr("1 4f58f3d9ee829f9a853f80b0e32c2981be883a537f0c21ad4af17be22e6e9959915ec21b7f9d8cc4c7315f31f3600e5 1212110eb10dbc575bccc44dcd77400f38282c4728b5efac69c0b4c9011bd27b8ed608acd81f027039216a291ac636a8");
+		Bls.setGeneratorOfPublicKey(gen);
+
+                String aggHmySignature  = "eead659d31dc6a4e19d42b3b54102ea01ecd7cb2efb3931043fc4c12f11930668adf15cea34fa1e830da518b3ff7e10b4c00d930783044202dcc7afa19310c6090c922c7b065ebbfcf1ccd71000c01cc8acf1035e50309a02add9e9df0212291";
+                byte[] blockNum = BigInteger.valueOf(25).toByteArray();
+                byte[] blockHash = hexStrToByte("abab20cc19ec241a6f02f4dfbe4ba5cc4c5dad39228ec82326fa24d36340a1de");
+                byte[] viewId = blockNum;
+
+                byte[] payload = new byte[8 + blockHash.length + 8];
+                System.arraycopy(toByteArrayLittleEndianUnsigned(blockNum), 0, payload, 0, blockNum.length);
+                System.arraycopy(blockHash, 0, payload, 8, blockHash.length);
+                System.arraycopy(toByteArrayLittleEndianUnsigned(viewId), 0, payload, 8+blockHash.length, blockNum.length);
+                System.out.println("payload = " + Arrays.toString(payload));
+
+
+                String[] hmyPublickeys = {
+                                                "e751ec995defe4931273aaebcb2cd14bf37e629c554a57d3f334c37881a34a6188a93e76113c55ef3481da23b7d7ab09",
+                                                "2d61379e44a772e5757e27ee2b3874254f56073e6bd226eb8b160371cc3c18b8c4977bd3dcb71fd57dc62bf0e143fd08",
+                                                "86dc2fdc2ceec18f6923b99fd86a68405c132e1005cf1df72dca75db0adfaeb53d201d66af37916d61f079f34f21fb96",
+                                                "52ecce5f64db21cbe374c9268188f5d2cdd5bec1a3112276a350349860e35fb81f8cfe447a311e0550d961cf25cb988d",
+                                                "678ec9670899bf6af85b877058bea4fc1301a5a3a376987e826e3ca150b80e3eaadffedad0fedfa111576fa76ded980c",
+                                                "16513c487a6bb76f37219f3c2927a4f281f9dd3fd6ed2e3a64e500de6545cf391dd973cc228d24f9bd01efe94912e714",
+                                                "65f55eb3052f9e9f632b2923be594ba77c55543f5c58ee1454b9cfd658d25e06373b0f7d42a19c84768139ea294f6204",
+                                                "02c8ff0b88f313717bc3a627d2f8bb172ba3ad3bb9ba3ecb8eed4b7c878653d3d4faf769876c528b73f343967f74a917",
+                                };
+
+
+                PublicKey aggPub = new PublicKey();
+                Signature aggSig = new Signature();
+                aggSig.deserialize(hexStrToByte(aggHmySignature));
+                System.out.println("agg sig = " + Arrays.toString(aggSig.serialize()));
+
+                for(int i=0;i<hmyPublickeys.length;i++){
+                        //System.out.println(hmyPublickeys[i]);
+                        PublicKey pubKey = new PublicKey();
+                        pubKey.deserialize(hexStrToByte(hmyPublickeys[i]));
+                        if(i==0) {
+                                aggPub = pubKey;
+                        }else aggPub.add(pubKey);
+                }
+                System.out.println("agg pub bytes = " + Arrays.toString(aggPub.serialize()));
+//              System.out.println("agg pub string = " + pubVec.serializeToHexStr());
+
+                assertBool("Ganesha Verify Harmony Aggregate demo", aggSig.verifyHash(aggPub, payload));
+        }
+public static void testHarmonyAggregate2() {
+                Bls.init(Bls.BLS12_381);
+                Bls.setETHserialization(false);
+                Bls.setMapToMode(Bls.MAP_TO_MODE_ORIGINAL);
+                PublicKey gen = new PublicKey();
+                // the old generator
+                gen.setStr("1 4f58f3d9ee829f9a853f80b0e32c2981be883a537f0c21ad4af17be22e6e9959915ec21b7f9d8cc4c7315f31f3600e5 1212110eb10dbc575bccc44dcd77400f38282c4728b5efac69c0b4c9011bd27b8ed608acd81f027039216a291ac636a8");
+                Bls.setGeneratorOfPublicKey(gen);
+
+                String aggHmySignature  = "69e2fdcd422ce7e9d683c6bc09b16ae8fd06e33f1f486b506aedbc819e3c31126585cba991d8ca519f4c83183408881152447dbfbb30fb2b7f538163260d67049e623a2f9c53503941c5b7e7850d4bd7786d0fad2efe0ebb368b0768d617cf0a";
+
+                byte[] blockNum = BigInteger.valueOf(43).toByteArray();
+                byte[] blockHash = hexStrToByte("ce79d4c6a838677150c7bf68897ec58d5421ed91c212bf1267d15358e93df707");
+                byte[] viewId = blockNum;
+
+                byte[] payload = new byte[8 + blockHash.length + 8];
+                System.arraycopy(toByteArrayLittleEndianUnsigned(blockNum), 0, payload, 0, blockNum.length);
+                System.arraycopy(blockHash, 0, payload, 8, blockHash.length);
+                System.arraycopy(toByteArrayLittleEndianUnsigned(viewId), 0, payload, 8+blockHash.length, blockNum.length);
+                System.out.println("payload = " + Arrays.toString(payload));
+
+
+                String[] hmyPublickeys = {
+                                                "e751ec995defe4931273aaebcb2cd14bf37e629c554a57d3f334c37881a34a6188a93e76113c55ef3481da23b7d7ab09",
+                                                "2d61379e44a772e5757e27ee2b3874254f56073e6bd226eb8b160371cc3c18b8c4977bd3dcb71fd57dc62bf0e143fd08",
+                                                "86dc2fdc2ceec18f6923b99fd86a68405c132e1005cf1df72dca75db0adfaeb53d201d66af37916d61f079f34f21fb96",
+                                                "52ecce5f64db21cbe374c9268188f5d2cdd5bec1a3112276a350349860e35fb81f8cfe447a311e0550d961cf25cb988d",
+                                                "678ec9670899bf6af85b877058bea4fc1301a5a3a376987e826e3ca150b80e3eaadffedad0fedfa111576fa76ded980c",
+                                                "16513c487a6bb76f37219f3c2927a4f281f9dd3fd6ed2e3a64e500de6545cf391dd973cc228d24f9bd01efe94912e714",
+                                                "65f55eb3052f9e9f632b2923be594ba77c55543f5c58ee1454b9cfd658d25e06373b0f7d42a19c84768139ea294f6204",
+                                                "02c8ff0b88f313717bc3a627d2f8bb172ba3ad3bb9ba3ecb8eed4b7c878653d3d4faf769876c528b73f343967f74a917",
+                                };
+
+
+                PublicKey aggPub = new PublicKey();
+                Signature aggSig = new Signature();
+                aggSig.deserialize(hexStrToByte(aggHmySignature));
+                System.out.println("agg sig = " + Arrays.toString(aggSig.serialize()));
+
+                for(int i=0;i<hmyPublickeys.length;i++){
+                        //System.out.println(hmyPublickeys[i]);
+                        PublicKey pubKey = new PublicKey();
+                        pubKey.deserialize(hexStrToByte(hmyPublickeys[i]));
+                        if(i==0) {
+                                aggPub = pubKey;
+                        }else aggPub.add(pubKey);
+                }
+                System.out.println("agg pub bytes = " + Arrays.toString(aggPub.serialize()));
+//              System.out.println("agg pub string = " + pubVec.serializeToHexStr());
+
+                assertBool("Local 8 node aggregate verify", aggSig.verifyHash(aggPub, payload));
+        }
+
+
+private static String hexToBinary(String hex)
+    {
+
+        // variable to store the converted
+        // Binary Sequence
+        String binary = "";
+
+        // converting the accepted Hexadecimal
+        // string to upper case
+        hex = hex.toUpperCase();
+
+
+
+        int i;
+        char ch;
+
+        // loop to iterate through the length
+        // of the Hexadecimal String
+        for (i = 0; i < hex.length(); i++) {
+            // extracting each character
+            ch = hex.charAt(i);
+
+            // checking if the character is
+            // present in the keys
+            if (hashMap.containsKey(ch))
+
+                // adding to the Binary Sequence
+                // the corresponding value of
+                // the key
+                binary += hashMap.get(ch);
+
+            // returning Invalid Hexadecimal
+            // String if the character is
+            // not present in the keys
+            else {
+                binary = "Invalid Hexadecimal String";
+                return binary;
+            }
+        }
+
+        // returning the converted Binary
+        System.out.println("Binary bitmap = " + binary);
+        return binary;
+    }
+
+public static void testAggregateReal() {
+                Bls.init(Bls.BLS12_381);
+                Bls.setETHserialization(false);
+                Bls.setMapToMode(Bls.MAP_TO_MODE_ORIGINAL);
+                PublicKey gen = new PublicKey();
+                // the old generator
+                gen.setStr("1 4f58f3d9ee829f9a853f80b0e32c2981be883a537f0c21ad4af17be22e6e9959915ec21b7f9d8cc4c7315f31f3600e5 1212110eb10dbc575bccc44dcd77400f38282c4728b5efac69c0b4c9011bd27b8ed608acd81f027039216a291ac636a8");
+		Bls.setGeneratorOfPublicKey(gen);
+
+                String lastCommitBitmap = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f";
+                String aggHmySignature  = "4c4e5efab523508326903e124fdd1aa0c3f9a72f04282edfbe18f25e8d4a47e5ea46b394c656964f571d3b2adc217c0f0ebe992c1f9bd78ffc506b233144a9531565e9164d04847c729974d2345819811b9cbba043fc46980f0df56123dbf48a";
+		byte[] blockNum = BigInteger.valueOf(18658740).toByteArray();
+                byte[] blockHash = hexStrToByte("a05c5fcbdd0d4593543cb8e3f7174a8e851b872dd74b008b010c6c0980b46b7f");
+                                System.out.println("blockNum = " + Arrays.toString(blockNum));
+                                System.out.println("blockhash = " + Arrays.toString(blockHash));
+//              System.out.println("blocknum littleendian = " + Arrays.toString(toByteArrayLittleEndianUnsigned(blockNum)));
+                byte[] viewId = toByteArrayLittleEndianUnsigned(BigInteger.valueOf(18659328).toByteArray());
+                byte[] littleEndianBlockNum = toByteArrayLittleEndianUnsigned(blockNum);
+                System.out.println("littleendianblocknum = " + Arrays.toString(littleEndianBlockNum));
+                byte[] payload = new byte[8 + blockHash.length + 8];
+                System.arraycopy(littleEndianBlockNum, 0, payload, 0, blockNum.length);
+                System.arraycopy(blockHash, 0, payload, 8, blockHash.length);
+                System.arraycopy(viewId, 0, payload, 8+blockHash.length, blockNum.length);
+                System.out.println("payload = " + Arrays.toString(payload));
+
+
+                String[] hmyPublickeys = readSignerBlsKeys(new File(".").getAbsoluteFile()+"/../ffi/java/commitSigners");
+                String binaryBitmap = hexToBinary(lastCommitBitmap);
+
+                PublicKey aggPub = new PublicKey();
+                Signature aggSig = new Signature();
+                aggSig.deserialize(hexStrToByte(aggHmySignature));
+                System.out.println("agg sig = " + Arrays.toString(aggSig.serialize()));
+//              PublicKey allAggregate = new PublicKey();
+                for(int i=0;i<hmyPublickeys.length;i++){
+                        //System.out.println(hmyPublickeys[i]);
+                        PublicKey pubKey = new PublicKey();
+                        pubKey.deserialize(hexStrToByte(hmyPublickeys[i]));
+                        if(i==0) {
+                                aggPub = pubKey;
+//                              allAggregate.deserialize(pubKey.serialize());
+                        }else {
+//                              allAggregate.add(pubKey);
+                                if(binaryBitmap.charAt(i) == '1') {
+                                        aggPub.add(pubKey);
+                                }else {
+                                        aggPub.add(pubKey);
+                                }
+                        }
+                }
+                System.out.println("agg pub bytes = " + Arrays.toString(aggPub.serialize()));
+//                System.out.println("all agg pub bytes = " + Arrays.toString(allAggregate.serialize()));
+//              System.out.println("agg pub string = " + pubVec.serializeToHexStr());
+
+                assertBool("Verify", aggSig.verifyHash(aggPub, payload));
+
+        }
+
+                public static String[] readSignerBlsKeys(String filename) {
+                try{
+                Scanner scanner = new Scanner(new File(filename));
+                return scanner.nextLine().split(",");
+                }catch(Exception e) {
+                        System.out.println(new File(".").getAbsoluteFile());
+                }
+                return  null;
+        }
+
+public static void testAggregateReal3() {
+                Bls.init(Bls.BLS12_381);
+                Bls.setETHserialization(false);
+                Bls.setMapToMode(Bls.MAP_TO_MODE_ORIGINAL);
+                PublicKey gen = new PublicKey();
+                // the old generator
+                gen.setStr("1 4f58f3d9ee829f9a853f80b0e32c2981be883a537f0c21ad4af17be22e6e9959915ec21b7f9d8cc4c7315f31f3600e5 1212110eb10dbc575bccc44dcd77400f38282c4728b5efac69c0b4c9011bd27b8ed608acd81f027039216a291ac636a8");
+		Bls.setGeneratorOfPublicKey(gen);
+
+                String lastCommitBitmap = "ffffffffffffffffffffffffffffffffffffffffffffffffff7fffffff0f";
+                String aggHmySignature  = "ac8ae4613a4e310841ad22fca3a4e0c79230745e698d15bd9fb383e2293c3a58519af49d5c23951518f496ee1e600a06916337a2b2e4101b07f9b48e3ee878564e261979a156e618e5b3da2040b5ef2d154f583ceabcfe26dc2916a614f63897";
+		byte[] blockNum = BigInteger.valueOf(18741929).toByteArray();
+                byte[] blockHash = hexStrToByte("f33385bafc9623ce77205aea4674271a78e8e254092fe8a508f8e479300bf465");
+                                System.out.println("blockNum = " + Arrays.toString(blockNum));
+                                System.out.println("blockhash = " + Arrays.toString(blockHash));
+//              System.out.println("blocknum littleendian = " + Arrays.toString(toByteArrayLittleEndianUnsigned(blockNum)));
+                byte[] viewId = toByteArrayLittleEndianUnsigned(BigInteger.valueOf(18742517).toByteArray());
+                byte[] littleEndianBlockNum = toByteArrayLittleEndianUnsigned(blockNum);
+                System.out.println("littleendianblocknum = " + Arrays.toString(littleEndianBlockNum));
+                byte[] payload = new byte[8 + blockHash.length + 8];
+                System.arraycopy(littleEndianBlockNum, 0, payload, 0, blockNum.length);
+                System.arraycopy(blockHash, 0, payload, 8, blockHash.length);
+                System.arraycopy(viewId, 0, payload, 8+blockHash.length, blockNum.length);
+                System.out.println("payload = " + Arrays.toString(payload));
+
+
+                String[] hmyPublickeys = readSignerBlsKeys(new File(".").getAbsoluteFile()+"/../ffi/java/commitSigners2");
+                String binaryBitmap = hexToBinary(lastCommitBitmap);
+
+                PublicKey aggPub = new PublicKey();
+                Signature aggSig = new Signature();
+                aggSig.deserialize(hexStrToByte(aggHmySignature));
+                System.out.println("agg sig = " + Arrays.toString(aggSig.serialize()));
+//              PublicKey allAggregate = new PublicKey();
+                for(int i=0;i<hmyPublickeys.length;i++){
+                        //System.out.println(hmyPublickeys[i]);
+                        PublicKey pubKey = new PublicKey();
+                        pubKey.deserialize(hexStrToByte(hmyPublickeys[i]));
+                        if(i==0) {
+                                aggPub = pubKey;
+//                              allAggregate.deserialize(pubKey.serialize());
+                        }else {
+//                              allAggregate.add(pubKey);
+                                if(binaryBitmap.charAt(i) == '1') {
+                                        aggPub.add(pubKey);
+                                }else {
+                                        aggPub.sub(pubKey);
+                                }
+                        }
+                }
+                System.out.println("agg pub bytes = " + Arrays.toString(aggPub.serialize()));
+//                System.out.println("all agg pub bytes = " + Arrays.toString(allAggregate.serialize()));
+//              System.out.println("agg pub string = " + pubVec.serializeToHexStr());
+
+                assertBool("Aggregate Verify 2", aggSig.verifyHash(aggPub, payload));
+
+        }
 }
