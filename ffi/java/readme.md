@@ -10,7 +10,7 @@ cd ffi/java
 make test
 ```
 
-## for Ethereum compatibility mode
+## for Ethereum/Harmony compatibility mode
 
 ```
 cd bls
